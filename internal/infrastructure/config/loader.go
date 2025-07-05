@@ -21,6 +21,8 @@ func loadConfig(fileName string) (*viperConfig, error) {
 	v.AddConfigPath("../../configs")
 	v.AddConfigPath("../../../configs")
 	v.AddConfigPath("../../../../configs")
+	v.AddConfigPath("/app/configs")
+	v.AddConfigPath("/configs")
 
 	if err := v.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("failed to read config file %s: %w", fileName, err)
