@@ -1,0 +1,46 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# English-Only Codebase Rule
+
+## Core Principle
+**All code, comments, documentation, and communication must be in English**.
+
+## Mandatory English Usage
+
+### Code Elements
+- **Variable Names**: Must be in English
+- **Function Names**: Must be in English
+- **Struct Names**: Must be in English
+- **Interface Names**: Must be in English
+- **Package Names**: Must be in English
+- **File Names**: Must be in English
+- **Directory Names**: Must be in English
+
+### Comments & Documentation
+- **Inline Comments**: Must be in English
+- **Function Comments**: Must be in English
+- **README Files**: Must be in English
+- **API Documentation**: Must be in English
+- **Commit Messages**: Must be in English
+
+### Configuration & Metadata
+- **Environment Variables**: Must be in English
+- **Database Column Names**: Must be in English
+- **API Endpoints**: Must be in English
+- **Error Messages**: Must be in English
+- **Log Messages**: Must be in English
+
+## Enforcement
+- **Use linters** to catch non-English identifiers
+- **Code reviews** must check for English usage
+- **Pre-commit hooks** to check for English usage
+- **All exceptions must be documented**
+
+## Benefits
+- **Global team accessibility**
+- **Improved readability**
+- **Better maintainability**
+- **Professional standards**

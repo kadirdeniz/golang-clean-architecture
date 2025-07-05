@@ -1,0 +1,27 @@
+run:
+  timeout: 2m
+
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - gosimple
+    - unused
+    - gocyclo
+    - gofmt
+    - goimports
+    - ineffassign
+    - misspell
+    - unconvert
+    - dupl
+    - gocritic
+    - dogsled
+    - nakedret
+    - prealloc
+    - stylecheck
+    - typecheck
+    - whitespace
+  disable:
+    - revive
+    - depguard 

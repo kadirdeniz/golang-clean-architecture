@@ -1,0 +1,37 @@
+# Development environment configuration
+app:
+  name: "Todo API"
+  version: "1.0.0"
+  environment: "development"
+  port: 8080
+  host: "0.0.0.0"
+
+database:
+  driver: "postgres"
+  host: "postgres"
+  port: 5432
+  name: "todo_db_dev"
+  user: "postgres"
+  password: "postgres"
+  url: "postgres://postgres:postgres@postgres:5432/todo_db_dev?sslmode=disable"
+  ssl_mode: "disable"
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_max_lifetime: "5m"
+
+logging:
+  level: "debug"
+  format: "console"
+  output: "stdout"
+
+server:
+  read_timeout: "30s"
+  write_timeout: "30s"
+  idle_timeout: "60s"
+  graceful_shutdown_timeout: "10s"
+
+cors:
+  allowed_origins: ["*"]
+  allowed_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+  allowed_headers: ["*"]
+  allow_credentials: true 

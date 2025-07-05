@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: todo_postgres_dev
+    environment:
+      POSTGRES_DB: todo_db_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    networks:
+      - todo_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d todo_db_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Migration Service
+  migrate:
+    image: migrate/migrate:latest
+    container_name: todo_migrate_dev
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/todo_db_dev?sslmode=disable
+    volumes:
+      - ../migrations:/migrations
+    networks:
+      - todo_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["-path", "/migrations", "-database", "postgres://postgres:postgres@postgres:5432/todo_db_dev?sslmode=disable", "up"]
+    restart: "no"
+
+  # Application Server
+  app:
+    build:
+      context: ../
+      dockerfile: Dockerfile
+    container_name: todo_app_dev
+    environment:
+      CONFIG_FILE_NAME: config.dev
+    ports:
+      - "8080:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - todo_network
+    volumes:
+      - ../configs:/app/configs:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Test Runner (using Docker build)
+  test:
+    build:
+      context: ../
+      dockerfile: Dockerfile
+    container_name: todo_test_dev
+    environment:
+      CONFIG_FILE_NAME: config.dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - todo_network
+    command: ["sh", "-c", "go test ./... -v -cover"]
+
+  # Admin Panel (pgAdmin)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: todo_pgadmin_dev
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@todo.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - todo_network
+    volumes:
+      - pgadmin_data_dev:/var/lib/pgadmin
+
+volumes:
+  postgres_data_dev:
+  pgadmin_data_dev:
+
+networks:
+  todo_network:
+    driver: bridge 

@@ -1,0 +1,209 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Development Flow Rules - Go Clean Architecture
+
+## Core Principle
+**Always analyze the existing project structure before making any changes**. Every development task must follow a systematic approach: analyze → plan → document → align → implement → test → iterate.
+
+## Pre-Development Analysis Phase
+
+### Project Structure Analysis
+- **Examine existing codebase**: Understand current architecture and patterns
+- **Identify affected components**: Determine which layers, modules, and files will be impacted
+- **Review dependencies**: Understand relationships between components
+- **Assess current state**: Identify existing implementations and gaps
+- **Check configuration**: Review current config files and environment setup
+
+### Impact Assessment
+- **Layer boundaries**: Ensure changes respect Clean Architecture principles
+- **Dependency flow**: Verify no circular dependencies will be created
+- **Testing impact**: Identify which tests need to be updated or created
+- **Configuration changes**: Determine if new config parameters are needed
+- **Documentation updates**: Plan necessary documentation changes
+
+### Existing Structure Compatibility
+- **Follow established patterns**: Use existing naming conventions and file organization
+- **Respect layer responsibilities**: Maintain clear separation of concerns
+- **Leverage existing infrastructure**: Use current config, logging, and validation systems
+- **Preserve architectural integrity**: Don't break established patterns without justification
+
+## Requirements Clarification Phase
+
+### Active Questioning
+- **Ask clarifying questions**: Don't assume requirements - ask for specifics
+- **Validate understanding**: Repeat requirements back to ensure alignment
+- **Identify edge cases**: Ask about error scenarios and boundary conditions
+- **Performance requirements**: Understand expected performance characteristics
+- **Security considerations**: Identify security implications and requirements
+
+### Requirements Documentation
+- **Write clear requirements**: Document what needs to be built
+- **Define acceptance criteria**: Specify how success will be measured
+- **Identify constraints**: Document any limitations or restrictions
+- **List assumptions**: Document any assumptions being made
+- **Define scope boundaries**: Clearly define what is in and out of scope
+
+## Planning and Documentation Phase
+
+### Technical Documentation
+- **Create implementation plan**: Document the technical approach
+- **Design architecture changes**: Plan any structural modifications
+- **Define interfaces**: Design any new interfaces or contracts
+- **Plan data flow**: Document how data will flow through the system
+- **Identify risks**: Document potential challenges and mitigation strategies
+
+### Task Breakdown
+- **Break into small tasks**: Divide work into manageable, testable units
+- **Define task dependencies**: Identify which tasks depend on others
+- **Estimate effort**: Provide rough estimates for each task
+- **Set acceptance criteria**: Define success criteria for each task
+- **Plan testing strategy**: Define how each task will be tested
+
+### Alignment and Feedback
+- **Present plan for review**: Share the technical plan for feedback
+- **Incorporate feedback**: Update plan based on input received
+- **Get approval**: Ensure alignment before starting implementation
+- **Document final plan**: Keep the approved plan as reference
+
+## Implementation Phase
+
+### Incremental Development
+- **One task at a time**: Focus on completing one task before moving to the next
+- **Small, focused changes**: Make minimal changes to achieve the goal
+- **Frequent commits**: Commit work frequently with clear messages
+- **Continuous testing**: Test each change immediately after implementation
+- **Documentation updates**: Update documentation as you implement
+
+### Code Quality Standards
+- **Follow established patterns**: Use existing code style and conventions
+- **Write clean, readable code**: Ensure code is self-documenting
+- **Handle errors properly**: Implement proper error handling
+- **Add appropriate logging**: Include relevant log statements
+- **Follow naming conventions**: Use consistent, descriptive names
+
+### Testing at Each Step
+- **Unit tests**: Write tests for each new function or method
+- **Integration tests**: Test component interactions
+- **Run existing tests**: Ensure no regressions are introduced
+- **Manual testing**: Verify functionality works as expected
+- **Performance testing**: Validate performance characteristics
+
+## Validation and Iteration Phase
+
+### Comprehensive Testing
+- **Run full test suite**: Execute all tests to ensure no regressions
+- **Integration testing**: Test with other components
+- **End-to-end testing**: Verify complete user workflows
+- **Error scenario testing**: Test error conditions and edge cases
+- **Performance validation**: Ensure performance requirements are met
+
+### Code Review Process
+- **Self-review**: Review your own code before considering it complete
+- **Documentation review**: Ensure documentation is accurate and complete
+- **Test coverage review**: Verify adequate test coverage
+- **Architecture review**: Ensure architectural principles are maintained
+- **Security review**: Check for potential security issues
+
+### Iteration and Refinement
+- **Address feedback**: Incorporate any feedback received
+- **Refactor if needed**: Improve code quality based on review
+- **Update documentation**: Keep documentation current
+- **Re-test after changes**: Verify changes don't break existing functionality
+- **Final validation**: Ensure all requirements are met
+
+## Communication Guidelines
+
+### Before Starting Work
+- **Present analysis**: Share findings from project analysis
+- **Show impact assessment**: Explain what will be affected
+- **Propose approach**: Present technical approach for review
+- **Ask for feedback**: Request input on the proposed plan
+- **Get alignment**: Ensure everyone is on the same page
+
+### During Development
+- **Regular updates**: Provide progress updates on each task
+- **Highlight challenges**: Communicate any issues or blockers
+- **Request clarification**: Ask questions when requirements are unclear
+- **Share decisions**: Explain technical decisions and rationale
+- **Document changes**: Keep documentation updated
+
+### After Completion
+- **Present results**: Show what was accomplished
+- **Demonstrate functionality**: Show the working implementation
+- **Review test results**: Share test outcomes and coverage
+- **Document lessons learned**: Capture insights for future reference
+- **Plan next steps**: Identify any follow-up work needed
+
+## Anti-patterns to Avoid
+
+### Analysis Anti-patterns
+- ❌ **Jumping into coding**: Starting without understanding the codebase
+- ❌ **Ignoring existing patterns**: Not following established conventions
+- ❌ **Not asking questions**: Assuming requirements without clarification
+- ❌ **Skipping impact assessment**: Not understanding what will be affected
+- ❌ **Ignoring architecture**: Breaking established architectural patterns
+
+### Planning Anti-patterns
+- ❌ **No documentation**: Not documenting the plan or approach
+- ❌ **Big bang development**: Trying to implement everything at once
+- ❌ **No task breakdown**: Not dividing work into manageable pieces
+- ❌ **No feedback loop**: Not seeking input on the plan
+- ❌ **Unclear requirements**: Proceeding with vague requirements
+
+### Implementation Anti-patterns
+- ❌ **No testing**: Implementing without writing tests
+- ❌ **Breaking existing functionality**: Introducing regressions
+- ❌ **Poor code quality**: Writing code that doesn't meet standards
+- ❌ **No documentation updates**: Not keeping documentation current
+- ❌ **Ignoring feedback**: Not incorporating review feedback
+
+## Quality Gates
+
+### Before Starting Implementation
+- [ ] Project analysis completed
+- [ ] Requirements clarified and documented
+- [ ] Technical plan created and reviewed
+- [ ] Tasks broken down and estimated
+- [ ] Alignment obtained from stakeholders
+- [ ] Testing strategy defined
+
+### During Implementation
+- [ ] Each task completed and tested
+- [ ] Code follows established patterns
+- [ ] Tests written and passing
+- [ ] Documentation updated
+- [ ] No regressions introduced
+- [ ] Performance requirements met
+
+### Before Completion
+- [ ] All requirements implemented
+- [ ] Full test suite passing
+- [ ] Code review completed
+- [ ] Documentation complete and accurate
+- [ ] Performance validated
+- [ ] Security review completed
+
+## Continuous Improvement
+
+### Process Refinement
+- **Retrospectives**: Regular reviews of the development process
+- **Feedback collection**: Gather feedback on the development approach
+- **Process updates**: Continuously improve the development workflow
+- **Tool evaluation**: Assess and improve development tools
+- **Knowledge sharing**: Share lessons learned with the team
+
+### Skill Development
+- **Learning opportunities**: Identify areas for skill improvement
+- **Best practices**: Stay updated with industry best practices
+- **Code review skills**: Improve ability to review and provide feedback
+- **Testing skills**: Enhance testing and quality assurance capabilities
+- **Documentation skills**: Improve technical writing and documentation
+
+## References
+- [Clean Architecture Principles](mdc:docs/architecture/clean-architecture.md)
+- [Coding Standards](mdc:.cursor/rules/coding-standards.mdc)
+- [Folder Structure Rules](mdc:.cursor/rules/folder-structure.mdc)
+- [Technology Stack Rules](mdc:.cursor/rules/tech-stack.mdc)

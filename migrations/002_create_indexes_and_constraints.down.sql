@@ -1,0 +1,9 @@
+DROP INDEX IF EXISTS idx_todos_active;
+DROP INDEX IF EXISTS idx_todos_completed_priority;
+DROP INDEX IF EXISTS idx_todos_priority_due_date;
+DROP INDEX IF EXISTS idx_todos_completed_created_at;
+DROP INDEX IF EXISTS idx_todos_due_date;
+DROP INDEX IF EXISTS idx_todos_priority;
+DROP INDEX IF EXISTS idx_todos_updated_at;
+DROP INDEX IF EXISTS idx_todos_created_at;
+DROP INDEX IF EXISTS idx_todos_completed; 

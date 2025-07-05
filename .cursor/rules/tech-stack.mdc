@@ -1,0 +1,83 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Technology Stack Rules - Go Clean Architecture
+
+## Core Principle
+**Strict adherence to existing technology stack**. Any deviation must be thoroughly justified.
+
+## Mandatory Technologies
+
+### Programming Language
+- **Go 1.21+** - Only allowed language for this project
+
+### Web Framework
+- **Fiber 2.x** - HTTP framework (Express.js-like API, zero memory allocation)
+- **Alternatives**: Only if Fiber has critical limitations
+
+### Database & Caching
+- **PostgreSQL 15+** - Production database (ACID compliance, advanced indexing)
+- **SQLite** - Testing database (zero configuration, fast execution)
+- **Redis 7+** - Caching layer (session storage, API caching, rate limiting)
+
+### ORM & Tools
+- **GORM 1.25+** - Database operations (auto migrations, hooks, connection pooling)
+- **golang-migrate** - Database migrations
+- **Alternatives**: Only for specific requirements (SQLx for raw SQL, Ent for GraphQL)
+
+### Testing Framework
+- **Ginkgo 2.x + Gomega** - BDD testing (Describe/Context/It syntax)
+- **Mockery 2.x** - Interface mocking (type-safe mocks, automatic generation)
+
+### Development Tools
+- **Air** - Hot reload for development
+- **Wire** - Compile-time dependency injection
+- **golangci-lint** - Code quality checks
+- **pre-commit** - Automated code quality checks
+
+### Containerization & CI/CD
+- **Docker** - Application containerization (multi-stage builds)
+- **Docker Compose** - Local development environment
+- **GitHub Actions** - CI/CD platform
+- **gosec** - Go security linting
+
+### Configuration & Monitoring
+- **Viper** - Configuration management (YAML, environment-specific)
+- **Zap** - Structured logging (high performance)
+- **Prometheus** - Metrics collection
+- **Swagger/OpenAPI 3.0** - API documentation
+
+## Technology Evaluation Process
+
+### When to Consider Alternatives
+1. **Performance Issues** - Current technology cannot meet requirements
+2. **Security Vulnerabilities** - Critical security issues
+3. **Maintenance Issues** - Technology no longer maintained
+4. **Feature Gaps** - Lacks critical features for project needs
+
+### Approval Process
+1. **Technical Review** - Detailed analysis of alternatives
+2. **Performance Testing** - Benchmark against current technology
+3. **Security Assessment** - Security review
+4. **Team Discussion** - Team consensus
+5. **Documentation Update** - Update all relevant docs
+6. **Migration Plan** - Detailed plan with rollback strategy
+
+## Version Management
+- **Lock all dependency versions** in go.mod
+- **Monthly dependency updates** with testing
+- **All updates must pass CI/CD pipeline**
+
+## Security & Performance
+- **Regular security scanning** of dependencies
+- **Keep technologies updated** to latest stable versions
+- **Maintain performance benchmarks** for all technologies
+- **Regular load testing** of technology stack
+
+## References
+- [Go Documentation](mdc:https:/golang.org/doc)
+- [Fiber Documentation](mdc:https:/docs.gofiber.io)
+- [GORM Documentation](mdc:https:/gorm.io/docs)
+- [Ginkgo Documentation](mdc:https:/onsi.github.io/ginkgo)

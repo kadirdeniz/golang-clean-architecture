@@ -1,0 +1,357 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Folder Structure Rules - Go Clean Architecture
+
+## Core Principle
+**Follow the exact folder structure defined in `docs/base-folder-structre.md`**. This structure is designed for Clean Architecture principles and should not be modified without thorough discussion and justification.
+
+## Project Structure Overview
+
+```
+golang-clean-architecture/
+├── .github/workflows/          # CI/CD automation workflows
+├── cmd/server/                 # Application entry points and DI setup
+├── internal/                   # Private application code (Clean Architecture layers)
+├── configs/                    # Environment-specific configuration files
+├── docker/                     # Containerization and deployment configs
+├── migrations/                 # Database schema migrations
+├── docs/                       # Project documentation and API specs
+├── tests/                      # Comprehensive test suite
+├── pkg/                        # Public, reusable packages
+└── Supporting files            # Build, lint, and project configs
+```
+
+## Detailed Folder Explanations
+
+### Root Level Directories
+
+#### `.github/workflows/`
+**Purpose**: CI/CD automation and deployment pipelines
+- **ci.yml**: Continuous integration workflow
+- **deploy-dev.yml**: Development environment deployment
+- **deploy-staging.yml**: Staging environment deployment  
+- **deploy-prod.yml**: Production environment deployment
+- **security.yml**: Security scanning and vulnerability checks
+- **release.yml**: Release management and versioning
+
+#### `cmd/server/`
+**Purpose**: Application entry points and dependency injection setup
+- **main.go**: Application bootstrap and server startup
+- **wire.go**: Dependency injection configuration using Google Wire
+- **Dependency Injection**: Centralized DI setup for all application layers
+
+#### `configs/`
+**Purpose**: Environment-specific configuration management
+- **config.yaml**: Base configuration with common settings
+- **config.dev.yaml**: Development environment overrides
+- **config.staging.yaml**: Staging environment overrides
+- **config.prod.yaml**: Production environment overrides
+- **config.test.yaml**: Testing environment overrides
+
+#### `docker/`
+**Purpose**: Containerization and deployment configurations
+- **Dockerfile**: Multi-stage application container build
+- **docker-compose.dev.yml**: Local development environment
+- **docker-compose.staging.yml**: Staging environment setup
+- **docker-compose.prod.yml**: Production environment setup
+- **.dockerignore**: Files to exclude from Docker builds
+
+#### `migrations/`
+**Purpose**: Database schema versioning and evolution
+- **001_create_users_table.sql**: User entity schema
+- **002_create_todos_table.sql**: Todo entity schema
+- **003_create_indexes.sql**: Performance optimization indexes
+
+#### `docs/`
+**Purpose**: Project documentation and API specifications
+- **api/swagger.json**: OpenAPI/Swagger API documentation
+- **architecture/**: System architecture documentation
+  - **clean-architecture.md**: Clean Architecture principles
+  - **database-schema.md**: Database design documentation
+
+#### `pkg/`
+**Purpose**: Public, reusable packages that can be imported by external projects
+- **Shared utilities**: Common functionality across projects
+- **Public APIs**: Exported interfaces and implementations
+- **Third-party integrations**: External service clients
+
+### Internal Structure (Clean Architecture Layers)
+
+#### `internal/domain/`
+**Purpose**: Core business logic and domain entities (innermost layer)
+
+##### `internal/domain/entity/`
+**Purpose**: Core business objects and domain models
+- **todo.go**: Todo entity with business rules and validations
+- **user.go**: User entity with authentication and authorization logic
+- **Domain Logic**: Business rules, validations, and entity behavior
+
+##### `internal/domain/repository/`
+**Purpose**: Data access contracts and interfaces
+- **base_repository.go**: Common repository interface patterns
+- **todo_repository.go**: Todo-specific data access contracts
+- **user_repository.go**: User-specific data access contracts
+- **Interface Definitions**: Abstract data access layer contracts
+
+##### `internal/domain/usecase/`
+**Purpose**: Business logic contracts and use case interfaces
+- **base_usecase.go**: Common use case patterns and base interfaces
+- **todo_usecase.go**: Todo business logic contracts
+- **user_usecase.go**: User business logic contracts
+- **Business Logic Contracts**: Application service layer interfaces
+
+#### `internal/app/`
+**Purpose**: Application setup and dependency injection
+- **app.go**: Application configuration and dependency wiring
+- **Dependency Injection**: Centralized DI container setup
+- **Application Bootstrap**: Service initialization and startup
+
+#### `internal/delivery/`
+**Purpose**: External interface layer (HTTP, gRPC, CLI)
+
+##### `internal/delivery/http/`
+**Purpose**: HTTP delivery mechanism and REST API
+
+###### `internal/delivery/http/handler/`
+**Purpose**: HTTP request handlers and endpoint implementations
+- **todo_handler.go**: Todo CRUD operations and business logic orchestration
+- **user_handler.go**: User management and authentication endpoints
+- **Request Processing**: HTTP request/response handling
+
+###### `internal/delivery/http/middleware/`
+**Purpose**: HTTP middleware for cross-cutting concerns
+- **auth.go**: Authentication and authorization middleware
+- **cors.go**: Cross-Origin Resource Sharing configuration
+- **logger.go**: Request/response logging middleware
+- **rate_limiter.go**: API rate limiting and throttling
+- **recovery.go**: Panic recovery and error handling
+- **metrics.go**: Prometheus metrics collection
+
+###### `internal/delivery/http/router/`
+**Purpose**: HTTP routing and endpoint registration
+- **router.go**: Route definitions and middleware chaining
+- **URL Mapping**: Endpoint to handler mapping
+
+###### `internal/delivery/http/dto/`
+**Purpose**: Data Transfer Objects for API communication
+- **todo_dto.go**: Todo request/response data structures
+- **user_dto.go**: User request/response data structures
+- **response.go**: Standard API response formats
+- **Request/Response Models**: API contract definitions
+
+###### `internal/delivery/http/error/`
+**Purpose**: HTTP error handling and response formatting
+- **error_handler.go**: Centralized error processing and formatting
+- **Error Management**: Consistent error responses
+
+###### `internal/delivery/http/api/external_service/`
+**Purpose**: External API integrations and clients
+- **dto/**: External service data structures
+  - **request.go**: External API request models
+  - **response.go**: External API response models
+- **client.go**: External service HTTP client implementation
+
+##### `internal/delivery/grpc/`
+**Purpose**: gRPC service definitions and implementations
+- **handler/**: gRPC service handlers
+- **middleware/**: gRPC middleware
+- **proto/**: Protocol buffer definitions
+- **service/**: gRPC service implementations
+
+#### `internal/repository/`
+**Purpose**: Data access implementations (infrastructure layer)
+
+##### `internal/repository/postgres/`
+**Purpose**: PostgreSQL data access implementations
+- **base_repository.go**: Common repository implementation patterns
+- **todo_repository.go**: Todo entity data access implementation
+- **user_repository.go**: User entity data access implementation
+- **Database Operations**: CRUD operations and query implementations
+
+#### `internal/infrastructure/`
+**Purpose**: Infrastructure concerns and external integrations
+
+##### `internal/infrastructure/datasource/postgres/`
+**Purpose**: Database connection and migration management
+- **connection.go**: PostgreSQL connection pool and configuration
+- **migration.go**: Database migration execution and management
+
+##### `internal/infrastructure/config/`
+**Purpose**: Application configuration management
+- **config.go**: Configuration loading and validation using Viper
+
+##### `internal/infrastructure/logger/`
+**Purpose**: Structured logging implementation
+- **logger.go**: Zap logger configuration and setup
+
+##### `internal/infrastructure/validator/`
+**Purpose**: Input validation and sanitization
+- **validator.go**: Request validation using go-playground/validator
+
+##### `internal/infrastructure/metrics/`
+**Purpose**: Application metrics and monitoring
+- **prometheus.go**: Prometheus metrics collection and exposition
+
+## Testing Structure
+
+### `tests/` Directory Organization
+**Purpose**: Comprehensive test suite mirroring the source structure
+
+#### `tests/domain/`
+**Purpose**: Domain layer unit tests
+
+##### `tests/domain/entity/`
+**Purpose**: Entity business logic and validation tests
+- **entity_suite_test.go**: Ginkgo test suite setup for entities
+- **todo_test.go**: Todo entity business rule tests
+- **user_test.go**: User entity validation and behavior tests
+
+##### `tests/domain/repository/`
+**Purpose**: Repository interface contract tests
+- **repository_suite_test.go**: Repository test suite setup
+- **todo_repository_test.go**: Todo repository interface tests
+- **user_repository_test.go**: User repository interface tests
+
+##### `tests/domain/usecase/`
+**Purpose**: Use case business logic tests
+- **usecase_suite_test.go**: Use case test suite setup
+- **todo_usecase_test.go**: Todo business logic tests
+- **user_usecase_test.go**: User business logic tests
+
+#### `tests/usecase/`
+**Purpose**: Use case implementation integration tests
+- **usecase_suite_test.go**: Use case integration test setup
+- **todo_usecase_test.go**: Todo use case integration tests
+- **user_usecase_test.go**: User use case integration tests
+
+#### `tests/delivery/`
+**Purpose**: Delivery layer tests
+
+##### `tests/delivery/http/`
+**Purpose**: HTTP delivery mechanism tests
+
+###### `tests/delivery/http/handler/`
+**Purpose**: HTTP handler unit and integration tests
+- **handler_suite_test.go**: Handler test suite setup
+- **todo_handler_test.go**: Todo endpoint tests
+- **user_handler_test.go**: User endpoint tests
+
+###### `tests/delivery/http/middleware/`
+**Purpose**: HTTP middleware tests
+- **middleware_suite_test.go**: Middleware test suite setup
+- **auth_test.go**: Authentication middleware tests
+- **cors_test.go**: CORS middleware tests
+- **logger_test.go**: Logging middleware tests
+- **validator_test.go**: Validation middleware tests
+- **rate_limiter_test.go**: Rate limiting tests
+- **recovery_test.go**: Panic recovery tests
+- **metrics_test.go**: Metrics collection tests
+
+###### `tests/delivery/http/api/external_service/`
+**Purpose**: External service integration tests
+- **dto/**: External service DTO tests
+  - **request_test.go**: Request model tests
+  - **response_test.go**: Response model tests
+- **client_test.go**: External service client tests
+
+#### `tests/repository/`
+**Purpose**: Repository implementation tests
+
+##### `tests/repository/postgres/`
+**Purpose**: PostgreSQL repository tests
+- **base_repository_test.go**: Base repository pattern tests
+- **todo_repository_test.go**: Todo repository implementation tests
+- **user_repository_test.go**: User repository implementation tests
+
+#### `tests/mocks/`
+**Purpose**: Generated mock files for testing
+- **TodoRepository.go**: Mock implementation of Todo repository
+- **UserRepository.go**: Mock implementation of User repository
+- **TodoUseCase.go**: Mock implementation of Todo use case
+
+#### `tests/helper/`
+**Purpose**: Test utilities and helper functions
+- **database.go**: Database test setup and teardown
+- **http.go**: HTTP test client utilities
+- **fixtures.go**: Test data fixtures and factories
+- **metrics.go**: Metrics test utilities
+
+## Dependency Injection Structure
+
+### Wire Configuration (`cmd/server/wire.go`)
+**Purpose**: Centralized dependency injection using Google Wire
+- **Provider Functions**: Define how dependencies are created
+- **Injector Functions**: Wire up the complete dependency graph
+- **Interface Bindings**: Map interfaces to concrete implementations
+- **Configuration Injection**: Inject configuration into all layers
+
+### DI Flow
+1. **Configuration Loading**: Load config from `configs/` directory
+2. **Infrastructure Setup**: Initialize database, logger, validator, metrics
+3. **Repository Creation**: Create concrete repository implementations
+4. **Use Case Wiring**: Inject repositories into use cases
+5. **Handler Setup**: Inject use cases into HTTP handlers
+6. **Middleware Configuration**: Set up HTTP middleware chain
+7. **Router Assembly**: Wire handlers to routes with middleware
+
+## Key Principles
+
+### Clean Architecture Compliance
+- **Dependency Direction**: Dependencies point inward (domain → use case → delivery)
+- **Layer Isolation**: Inner layers don't know about outer layers
+- **Interface Segregation**: Use interfaces for layer communication
+- **Single Responsibility**: Each layer has a specific purpose
+
+### Testing Strategy
+- **Unit Tests**: Test individual components in isolation
+- **Integration Tests**: Test component interactions
+- **End-to-End Tests**: Test complete user workflows
+- **Mock Usage**: Use mocks for external dependencies
+- **Test Coverage**: Aim for high test coverage across all layers
+
+### Configuration Management
+- **Environment-Specific**: Different configs for different environments
+- **Validation**: All configuration values are validated
+- **Default Values**: Sensible defaults for all settings
+- **Security**: Sensitive values handled securely
+
+## Anti-patterns to Avoid
+
+### Structure Anti-patterns
+- ❌ **Breaking layer boundaries**: Domain depending on infrastructure
+- ❌ **Circular dependencies**: Packages importing each other
+- ❌ **God packages**: Packages with too many responsibilities
+- ❌ **Mixed concerns**: Business logic in delivery layer
+- ❌ **Tight coupling**: Components depending on concrete implementations
+
+### Testing Anti-patterns
+- ❌ **No tests**: Implementing without writing tests
+- ❌ **Integration-only tests**: No unit tests for business logic
+- ❌ **Test duplication**: Duplicating test setup across files
+- ❌ **Slow tests**: Tests that take too long to run
+- ❌ **Fragile tests**: Tests that break with unrelated changes
+
+## Quality Gates
+
+### Before Committing
+- [ ] All tests passing
+- [ ] No circular dependencies
+- [ ] Layer boundaries respected
+- [ ] Configuration properly organized
+- [ ] Documentation updated
+- [ ] Code follows established patterns
+
+### Code Review Checklist
+- [ ] Structure aligns with base documentation
+- [ ] Clean Architecture principles followed
+- [ ] Tests written and passing
+- [ ] Configuration changes documented
+- [ ] No breaking changes to existing APIs
+
+## References
+- [Base Folder Structure Documentation](mdc:docs/base-folder-structre.md)
+- [Clean Architecture Principles](mdc:docs/architecture/clean-architecture.md)
+- [Go Project Layout Standards](mdc:https:/github.com/golang-standards/project-layout)

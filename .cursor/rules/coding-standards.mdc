@@ -1,0 +1,170 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Coding Standards - Clean Code & Senior Development
+
+## Core Principle
+**Write code as if the next developer reading it is a psychopath who knows where you live.** Every line of code should be self-explanatory, maintainable, and follow industry best practices.
+
+## Senior Developer Mindset
+
+### Problem-Solving Approach
+- **Think before coding**: Understand the problem completely before writing any code
+- **Design first**: Plan the solution architecture and data flow
+- **Consider edge cases**: Always think about error scenarios and boundary conditions
+- **Optimize for readability**: Code is read much more often than it's written
+- **Write testable code**: Design with testing in mind from the start
+
+### Code Quality Standards
+- **Self-documenting code**: Variable and function names should explain their purpose
+- **Single responsibility**: Each function/class should have one clear purpose
+- **DRY principle**: Don't Repeat Yourself - extract common logic into reusable functions
+- **Fail fast**: Validate inputs early and fail with clear error messages
+- **Defensive programming**: Handle unexpected scenarios gracefully
+
+## Naming Conventions
+    
+### Variables & Functions
+- Use descriptive, clear names that explain purpose
+- Avoid generic names like `x`, `data`, `temp`, `result`
+- Use camelCase for variables and functions
+- Use PascalCase for exported functions and types
+- Function names should be verbs or verb phrases
+
+### Structs & Interfaces
+- Use descriptive, purpose-driven names
+- Interface names should end with capability (e.g., `UserRepository`, `TodoService`)
+- Struct names should be nouns or noun phrases
+- Avoid generic names like `Repo`, `Service`, `Manager`
+
+## Function Design
+
+### Function Characteristics
+- **Small and focused**: Keep functions under 20-30 lines
+- **Single purpose**: Each function should do one thing well
+- **Clear input/output**: Use specific types, avoid `interface{}`
+- **Error handling**: Always handle errors explicitly
+- **Pure functions**: Prefer functions without side effects
+
+## Error Handling
+
+### Error Handling Best Practices
+- **Wrap errors**: Use `fmt.Errorf("context: %w", err)` to add context
+- **Custom error types**: Define domain-specific errors
+- **Fail fast**: Validate inputs early and return errors immediately
+- **Log appropriately**: Log errors with sufficient context for debugging
+- **Return meaningful errors**: Errors should help developers understand what went wrong
+
+## Comments & Documentation
+
+### Comment Guidelines
+- **Minimal comments**: Code should be self-explanatory
+- **Explain why, not what**: Comments should explain the reasoning, not the obvious
+- **Keep comments up-to-date**: Outdated comments are worse than no comments
+- **Use package comments**: Document exported packages and functions
+- **Avoid obvious comments**: Don't comment what the code clearly shows
+
+## Testing Standards
+
+### Test Design Principles
+- **Test behavior, not implementation**: Focus on what the code does, not how it does it
+- **Arrange-Act-Assert**: Structure tests with clear sections
+- **Descriptive test names**: Test names should explain the scenario being tested
+- **Test edge cases**: Include tests for error conditions and boundary values
+- **Keep tests simple**: Each test should verify one specific behavior
+
+## Code Organization
+
+### File Structure
+- **Logical grouping**: Group related functions and types together
+- **Consistent ordering**: Follow a consistent pattern (types, constants, functions)
+- **Reasonable file size**: Keep files under 500 lines, split if necessary
+- **Clear imports**: Group imports (standard library, third-party, internal)
+
+### Package Design
+- **Single responsibility**: Each package should have a clear, focused purpose
+- **Minimal coupling**: Reduce dependencies between packages
+- **Clear interfaces**: Define interfaces at the point of use
+- **Consistent naming**: Use consistent naming patterns across packages
+
+## Performance Considerations
+
+### Performance Best Practices
+- **Profile before optimizing**: Don't optimize prematurely
+- **Use appropriate data structures**: Choose the right tool for the job
+- **Avoid unnecessary allocations**: Reuse objects when possible
+- **Batch operations**: Group related operations to reduce overhead
+- **Cache wisely**: Cache frequently accessed data, but be mindful of memory usage
+
+## Security Best Practices
+
+### Security Guidelines
+- **Validate all inputs**: Never trust external data
+- **Use parameterized queries**: Prevent SQL injection
+- **Sanitize outputs**: Escape user-generated content
+- **Follow principle of least privilege**: Use minimal required permissions
+- **Keep dependencies updated**: Regularly update to patch security vulnerabilities
+
+## Code Review Checklist
+
+### Before Submitting Code
+- [ ] Code follows naming conventions
+- [ ] Functions are small and focused
+- [ ] Error handling is comprehensive
+- [ ] Tests are written and passing
+- [ ] No obvious performance issues
+- [ ] Security considerations are addressed
+- [ ] Documentation is updated
+- [ ] Code is self-explanatory
+
+### During Code Review
+- [ ] Is the code readable and maintainable?
+- [ ] Are edge cases handled properly?
+- [ ] Is error handling appropriate?
+- [ ] Are tests comprehensive?
+- [ ] Is the solution efficient?
+- [ ] Are security best practices followed?
+- [ ] Is the code following established patterns?
+
+## Anti-patterns to Avoid
+
+### Code Quality Anti-patterns
+- ❌ **God functions**: Functions that do too many things
+- ❌ **Magic numbers**: Hardcoded values without explanation
+- ❌ **Deep nesting**: More than 3-4 levels of nesting
+- ❌ **Long parameter lists**: More than 4-5 parameters
+- ❌ **Global state**: Mutable global variables
+- ❌ **Premature optimization**: Optimizing before profiling
+- ❌ **Copy-paste programming**: Duplicating code instead of extracting
+
+### Architecture Anti-patterns
+- ❌ **Tight coupling**: Components that depend too much on each other
+- ❌ **Circular dependencies**: Packages that import each other
+- ❌ **God objects**: Classes that know too much
+- ❌ **Anemic domain models**: Objects with no behavior
+- ❌ **Leaky abstractions**: Implementation details leaking through interfaces
+
+## Continuous Improvement
+
+### Regular Practices
+- **Code reviews**: Regular peer reviews to maintain quality
+- **Refactoring**: Continuously improve code structure
+- **Learning**: Stay updated with best practices and new patterns
+- **Feedback**: Seek and incorporate feedback from team members
+- **Metrics**: Monitor code quality metrics and trends
+
+### Quality Metrics
+- **Test coverage**: Aim for 80%+ coverage
+- **Cyclomatic complexity**: Keep functions simple
+- **Code duplication**: Minimize repeated code
+- **Technical debt**: Track and reduce technical debt
+- **Performance**: Monitor and optimize performance bottlenecks
+
+## References
+- [Clean Code by Robert C. Martin](mdc:https:/www.amazon.com/Clean-Code-Handbook-Software-Craftsmanship/dp/0132350884)
+- [Effective Go](mdc:https:/golang.org/doc/effective_go.html)
+- [Go Code Review Comments](mdc:https:/github.com/golang/go/wiki/CodeReviewComments)
+- [SOLID Principles](mdc:https:/en.wikipedia.org/wiki/SOLID)
+- [Clean Architecture](mdc:https:/blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)

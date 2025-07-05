@@ -1,0 +1,302 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# API Design Rules - Go Clean Architecture
+
+## Core Principle
+**Design APIs that are intuitive, consistent, and maintainable**. Follow REST principles, provide comprehensive documentation, and ensure backward compatibility through proper versioning.
+
+## REST API Design Principles
+
+### Resource-Oriented Design
+- **Resources as Nouns**: Use nouns for resource endpoints (e.g., `/todos`, `/users`)
+- **HTTP Methods**: Use appropriate HTTP methods for operations
+  - `GET`: Retrieve resources
+  - `POST`: Create new resources
+  - `PUT`: Update entire resources
+  - `PATCH`: Partial resource updates
+  - `DELETE`: Remove resources
+- **Consistent Naming**: Use consistent naming conventions across all endpoints
+
+### URL Structure
+```
+/api/v1/todos                    # List all todos
+/api/v1/todos/{id}              # Get specific todo
+/api/v1/todos/{id}/subtasks     # Nested resources
+/api/v1/users/{id}/todos        # User's todos
+```
+
+### HTTP Status Codes
+- **2xx Success**: Request completed successfully
+  - `200 OK`: Request succeeded
+  - `201 Created`: Resource created successfully
+  - `204 No Content`: Request succeeded, no response body
+- **4xx Client Errors**: Client made an error
+  - `400 Bad Request`: Invalid request data
+  - `401 Unauthorized`: Authentication required
+  - `403 Forbidden`: Insufficient permissions
+  - `404 Not Found`: Resource not found
+  - `422 Unprocessable Entity`: Validation errors
+- **5xx Server Errors**: Server encountered an error
+  - `500 Internal Server Error`: Unexpected server error
+  - `502 Bad Gateway`: Upstream service error
+  - `503 Service Unavailable`: Service temporarily unavailable
+
+## Request/Response Standards
+
+### Request Headers
+- **Content-Type**: `application/json` for JSON requests
+- **Accept**: `application/json` for JSON responses
+- **Authorization**: Bearer token for authenticated requests
+- **User-Agent**: Client identification
+- **X-Request-ID**: Request tracing
+
+### Response Format
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "title": "Complete API documentation",
+    "completed": false,
+    "created_at": "2024-01-07T10:30:00Z"
+  },
+  "meta": {
+    "timestamp": "2024-01-07T10:30:00Z",
+    "request_id": "req_123456"
+  }
+}
+```
+
+### Error Response Format
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid input data",
+    "details": {
+      "title": ["Title is required"],
+      "priority": ["Priority must be low, medium, or high"]
+    }
+  },
+  "meta": {
+    "timestamp": "2024-01-07T10:30:00Z",
+    "request_id": "req_123456"
+  }
+}
+```
+
+## Data Transfer Objects (DTOs)
+
+### Request DTOs
+- **Validation**: Use struct tags for validation
+- **Documentation**: Include field descriptions
+- **Type Safety**: Use appropriate Go types
+- **Optional Fields**: Handle optional fields properly
+
+### Response DTOs
+- **Consistent Structure**: Maintain consistent response structure
+- **Data Transformation**: Transform domain entities to API responses
+- **Field Selection**: Include only necessary fields
+- **Nested Objects**: Handle nested resource relationships
+
+### Example DTOs
+```go
+// Request DTO
+type CreateTodoRequest struct {
+    Title       string `json:"title" validate:"required,min=1,max=255"`
+    Description string `json:"description" validate:"max=1000"`
+    Priority    string `json:"priority" validate:"oneof=low medium high"`
+    DueDate     string `json:"due_date" validate:"omitempty,datetime=2006-01-02"`
+}
+
+// Response DTO
+type TodoResponse struct {
+    ID          int       `json:"id"`
+    Title       string    `json:"title"`
+    Description string    `json:"description,omitempty"`
+    Priority    string    `json:"priority"`
+    Completed   bool      `json:"completed"`
+    DueDate     string    `json:"due_date,omitempty"`
+    CreatedAt   time.Time `json:"created_at"`
+    UpdatedAt   time.Time `json:"updated_at"`
+}
+```
+
+## API Versioning
+
+### Versioning Strategy
+- **URL Versioning**: Use `/api/v1/` prefix for versioning
+- **Backward Compatibility**: Maintain backward compatibility within major versions
+- **Deprecation Policy**: Clear deprecation timeline for breaking changes
+- **Migration Guide**: Provide migration guides for version upgrades
+
+### Version Management
+- **Major Versions**: Breaking changes require new major version
+- **Minor Versions**: New features in backward-compatible manner
+- **Patch Versions**: Bug fixes and improvements
+- **Deprecation Warnings**: Include deprecation warnings in responses
+
+## Query Parameters and Filtering
+
+### Pagination
+- **Page-based**: Use `page` and `limit` parameters
+- **Cursor-based**: Use `cursor` and `limit` for large datasets
+- **Consistent Format**: Maintain consistent pagination response format
+
+### Filtering
+- **Field Filters**: Allow filtering by specific fields
+- **Range Filters**: Support date and numeric ranges
+- **Search**: Provide full-text search capabilities
+- **Sorting**: Allow sorting by multiple fields
+
+### Example Query Parameters
+```
+GET /api/v1/todos?page=1&limit=20&status=active&priority=high&sort=created_at:desc
+```
+
+## Authentication and Authorization
+
+### Authentication Methods
+- **Bearer Tokens**: JWT tokens for API authentication
+- **API Keys**: For service-to-service communication
+- **OAuth 2.0**: For third-party integrations
+- **Session-based**: For web applications
+
+### Authorization
+- **Role-based Access**: Implement role-based access control
+- **Resource-level Permissions**: Fine-grained resource permissions
+- **Scope-based Access**: OAuth 2.0 scopes for API access
+- **Audit Logging**: Log all authorization decisions
+
+## Rate Limiting and Throttling
+
+### Rate Limiting Strategy
+- **Per User**: Limit requests per authenticated user
+- **Per IP**: Limit requests per IP address
+- **Per Endpoint**: Different limits for different endpoints
+- **Burst Handling**: Allow reasonable burst requests
+
+### Rate Limit Headers
+```
+X-RateLimit-Limit: 1000
+X-RateLimit-Remaining: 999
+X-RateLimit-Reset: 1641546000
+```
+
+## API Documentation
+
+### OpenAPI/Swagger Specification
+- **Complete Coverage**: Document all endpoints and models
+- **Examples**: Provide request/response examples
+- **Error Codes**: Document all possible error responses
+- **Authentication**: Document authentication requirements
+
+### Documentation Standards
+- **Clear Descriptions**: Use clear, concise descriptions
+- **Parameter Documentation**: Document all parameters and their constraints
+- **Response Examples**: Provide realistic response examples
+- **Code Samples**: Include code samples in multiple languages
+
+## Testing Strategy
+
+### API Testing
+- **Unit Tests**: Test individual handlers and DTOs
+- **Integration Tests**: Test complete request/response cycles
+- **Contract Tests**: Test API contracts and schemas
+- **Performance Tests**: Test API performance under load
+
+### Test Data Management
+- **Fixtures**: Use consistent test data fixtures
+- **Isolation**: Ensure test isolation and cleanup
+- **Realistic Data**: Use realistic test data
+- **Edge Cases**: Test edge cases and error scenarios
+
+## Monitoring and Observability
+
+### API Metrics
+- **Request Count**: Track request volume by endpoint
+- **Response Times**: Monitor API response times
+- **Error Rates**: Track error rates and types
+- **Throughput**: Monitor API throughput
+
+### Logging
+- **Request Logging**: Log all API requests with context
+- **Error Logging**: Log detailed error information
+- **Performance Logging**: Log slow requests and bottlenecks
+- **Audit Logging**: Log security-relevant events
+
+## Security Considerations
+
+### Input Validation
+- **Request Validation**: Validate all input data
+- **SQL Injection Prevention**: Use parameterized queries
+- **XSS Prevention**: Sanitize user input
+- **CSRF Protection**: Implement CSRF protection for state-changing operations
+
+### Data Protection
+- **Sensitive Data**: Never expose sensitive data in responses
+- **Data Encryption**: Encrypt sensitive data in transit and at rest
+- **Access Control**: Implement proper access controls
+- **Audit Trails**: Maintain audit trails for sensitive operations
+
+## Quality Gates
+
+### Before API Release
+- [ ] All endpoints documented in OpenAPI spec
+- [ ] Request/response validation implemented
+- [ ] Error handling comprehensive
+- [ ] Rate limiting configured
+- [ ] Security measures implemented
+- [ ] Performance benchmarks met
+
+### API Review Checklist
+- [ ] Follows REST principles
+- [ ] Consistent naming conventions
+- [ ] Proper HTTP status codes
+- [ ] Comprehensive error handling
+- [ ] Security best practices followed
+- [ ] Documentation complete and accurate
+
+## Anti-patterns to Avoid
+
+### Design Anti-patterns
+- ❌ **RPC-style URLs**: Using verbs in URLs instead of nouns
+- ❌ **Inconsistent naming**: Inconsistent naming conventions
+- ❌ **Poor error handling**: Generic error messages
+- ❌ **No versioning**: Breaking changes without versioning
+
+### Security Anti-patterns
+- ❌ **No input validation**: Accepting unvalidated input
+- ❌ **Sensitive data exposure**: Exposing sensitive data in responses
+- ❌ **Weak authentication**: Insufficient authentication measures
+- ❌ **No rate limiting**: Allowing unlimited API access
+
+### Performance Anti-patterns
+- ❌ **N+1 queries**: Inefficient database queries
+- ❌ **Large responses**: Returning unnecessarily large responses
+- ❌ **No caching**: Not implementing appropriate caching
+- ❌ **Synchronous operations**: Blocking operations in handlers
+
+## Continuous Improvement
+
+### API Evolution
+- **Feedback Collection**: Collect user feedback on API design
+- **Usage Analytics**: Analyze API usage patterns
+- **Performance Optimization**: Continuously optimize API performance
+- **Feature Enhancement**: Add new features based on user needs
+
+### Documentation Maintenance
+- **Regular Updates**: Keep documentation current with code changes
+- **Example Updates**: Update examples to reflect current usage
+- **Migration Guides**: Maintain migration guides for version changes
+- **Best Practices**: Update best practices based on lessons learned
+
+## References
+- [REST API Design Best Practices](mdc:https:/restfulapi.net)
+- [OpenAPI Specification](mdc:https:/swagger.io/specification)
+- [HTTP Status Codes](mdc:https:/developer.mozilla.org/en-US/docs/Web/HTTP/Status)
+- [Clean Architecture Principles](mdc:docs/architecture/clean-architecture.md)
