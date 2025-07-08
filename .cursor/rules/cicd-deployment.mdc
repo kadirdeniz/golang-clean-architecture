@@ -1,0 +1,315 @@
+# CI/CD and AWS Deployment Rules
+
+## Core Principle
+**Follow established CI/CD patterns and AWS deployment standards**. All deployment-related changes must respect existing pipeline configurations, security practices, and multi-environment architecture.
+
+## CI/CD Pipeline Structure
+
+### GitHub Actions Workflows
+The project uses a comprehensive GitHub Actions setup with the following workflows:
+
+- **`ci.yml`** - Continuous Integration (build, test, lint, security, ECR push)
+- **`deploy-dev.yml`** - Development environment deployment (automatic)
+- **`deploy-staging.yml`** - Staging environment deployment (manual approval)
+- **`deploy-prod.yml`** - Production environment deployment (strict approval)
+- **`security.yml`** - Daily security scanning and vulnerability checks
+- **`release.yml`** - Release management and versioning
+
+### Workflow Responsibilities
+
+#### CI Workflow (ci.yml)
+- **Purpose**: Continuous integration for all code changes
+- **Triggers**: Push to `main`/`develop`, Pull Requests
+- **Responsibilities**:
+  - Go setup and dependency installation
+  - Wire dependency injection code generation
+  - Unit and integration testing with PostgreSQL
+  - Code linting with golangci-lint
+  - Security scanning (gosec, vulnerability checks)
+  - Docker image building and ECR push (main/develop only)
+  - Artifact creation for deployments
+
+#### Development Deployment (deploy-dev.yml)
+- **Purpose**: Automatic deployment to development environment
+- **Triggers**: Push to `develop` branch, manual dispatch
+- **Responsibilities**:
+  - Artifact download from CI workflow
+  - AWS authentication and ECR login
+  - ECS service existence check
+  - Task definition update and deployment
+  - Database migration execution
+  - Deployment status reporting
+
+#### Staging Deployment (deploy-staging.yml)
+- **Purpose**: Manual approval deployment to staging
+- **Triggers**: Push to `main` branch, manual dispatch
+- **Responsibilities**:
+  - Manual approval workflow
+  - Pre-deployment smoke tests
+  - ECS deployment with health checks
+  - Post-deployment validation
+  - Error handling and notifications
+
+#### Production Deployment (deploy-prod.yml)
+- **Purpose**: Secure production deployment
+- **Triggers**: Manual dispatch only
+- **Responsibilities**:
+  - Strict input validation (image_tag, approved_by, reason)
+  - Pre-deployment security checks
+  - Manual approval with comprehensive details
+  - Current deployment backup
+  - Production deployment with monitoring
+  - Rollback instructions generation
+
+## Deployment Patterns
+
+### Environment-Specific Patterns
+
+#### Development Environment
+- **Deployment**: Automatic on `develop` branch push
+- **Approval**: None required
+- **Rollback**: Simple revert and redeploy
+- **Configuration**: `config.dev.yaml`
+- **Monitoring**: Basic CloudWatch logs
+- **Database**: Shared development database
+
+#### Staging Environment  
+- **Deployment**: Manual trigger with approval
+- **Approval**: Required before deployment
+- **Rollback**: Automated rollback capability
+- **Configuration**: `config.staging.yaml`
+- **Monitoring**: Enhanced monitoring with alerts
+- **Database**: Staging-specific database
+
+#### Production Environment
+- **Deployment**: Manual only with strict controls
+- **Approval**: Multi-step approval process
+- **Rollback**: Backup creation before deployment
+- **Configuration**: `config.prod.yaml`
+- **Monitoring**: Full observability stack
+- **Database**: Production database with backups
+
+### Docker Image Management
+
+#### Image Tagging Strategy
+- **Git Commit Hash**: Primary tag for all images
+- **Latest**: Updated for successful main/develop builds
+- **Version Tags**: Semantic versioning for releases
+- **Environment Tags**: Optional environment-specific tags
+
+#### ECR Repository Structure
+```
+<account-id>.dkr.ecr.<region>.amazonaws.com/golang-clean-architecture:
+├── <git-commit-hash>     # Primary identifier
+├── latest                # Latest successful build
+├── v1.0.0               # Release versions
+└── dev-latest           # Development builds
+```
+
+### Configuration Management
+
+#### Environment Variables
+- **AWS Secrets**: Use SSM Parameter Store for sensitive data
+- **Configuration Files**: Environment-specific YAML files
+- **Container Environment**: Task definition environment variables
+- **Override Pattern**: SSM parameters override file-based config
+
+#### Secret Management
+- **Database URLs**: Stored in SSM Parameter Store
+- **API Keys**: AWS Secrets Manager integration
+- **Certificates**: Certificate Manager for TLS
+- **GitHub Secrets**: CI/CD pipeline secrets
+
+## AWS Infrastructure Standards
+
+### ECS Configuration
+- **Launch Type**: Fargate for serverless containers
+- **Task Definition**: Versioned with each deployment
+- **Service Discovery**: CloudMap for service communication
+- **Health Checks**: HTTP health endpoints required
+- **Resource Limits**: CPU and memory limits defined
+
+### Load Balancer Setup
+- **Type**: Application Load Balancer (ALB)
+- **Target Groups**: Environment-specific target groups
+- **Health Checks**: `/health` endpoint monitoring
+- **SSL/TLS**: Certificate Manager integration
+- **Security Groups**: Restrictive inbound/outbound rules
+
+### Database Integration
+- **Connection Pooling**: GORM connection pool configuration
+- **Migrations**: Automated migration execution
+- **Backup Strategy**: RDS automated backups
+- **Connection Security**: VPC security groups
+- **Monitoring**: CloudWatch database metrics
+
+## Security Requirements
+
+### Container Security
+- **Base Images**: Distroless or minimal base images
+- **Non-root User**: All containers run as non-root
+- **Security Scanning**: Trivy and other security tools
+- **Vulnerability Management**: Regular dependency updates
+- **Secrets**: No secrets in container images
+
+### Network Security
+- **VPC Configuration**: Private subnets for containers
+- **Security Groups**: Least privilege access
+- **ALB Security**: HTTPS only, security headers
+- **Database Access**: Private subnet isolation
+- **Monitoring**: VPC Flow Logs enabled
+
+### Access Control
+- **IAM Roles**: Principle of least privilege
+- **GitHub Actions**: OIDC token authentication
+- **ECS Task Roles**: Minimal required permissions
+- **ECR Access**: Repository-specific permissions
+- **Audit Trail**: CloudTrail for all API calls
+
+## Quality Gates
+
+### Pre-Deployment Checks
+- **Unit Tests**: All tests must pass
+- **Integration Tests**: Database and service tests
+- **Security Scans**: Vulnerability and secret detection
+- **Linting**: Code quality standards
+- **Build Success**: Docker image builds successfully
+
+### Deployment Validations
+- **Health Checks**: Application responds to health endpoint
+- **Service Discovery**: Service registers correctly
+- **Database Connectivity**: Database connections successful
+- **Performance**: Response time within acceptable limits
+- **Rollback Ready**: Previous version backup available
+
+### Post-Deployment Monitoring
+- **Application Metrics**: Custom application metrics
+- **Infrastructure Metrics**: CloudWatch system metrics
+- **Log Aggregation**: Structured logging in CloudWatch
+- **Error Tracking**: Error rates and patterns
+- **Alerting**: CloudWatch alarms for critical issues
+
+## Development Integration
+
+### Makefile Integration
+The project Makefile provides deployment commands:
+- **`make deploy-dev`**: Deploy to development
+- **`make deploy-staging`**: Instructions for staging deployment
+- **`make deploy-prod`**: Instructions for production deployment
+- **`make ecr-push`**: Build and push to ECR
+- **`make security-scan`**: Local security checks
+
+### Local Development
+- **Docker Compose**: Local development environment
+- **Database Setup**: PostgreSQL container for development
+- **Hot Reload**: Air for development hot reload
+- **Wire Generation**: Automatic dependency injection
+- **Migration**: Local database migration support
+
+### Testing Strategy
+- **Unit Tests**: Ginkgo/Gomega testing framework
+- **Integration Tests**: Database integration testing
+- **Mock Generation**: Mockery for interface mocking
+- **Test Coverage**: Coverage reports and tracking
+- **E2E Testing**: Full application workflow testing
+
+## Monitoring and Observability
+
+### Logging Standards
+- **Structured Logging**: JSON format with Zap logger
+- **Correlation IDs**: Request tracking across services
+- **Log Levels**: Appropriate log levels for different environments
+- **CloudWatch Integration**: Centralized log aggregation
+- **Log Retention**: Environment-specific retention policies
+
+### Metrics Collection
+- **Application Metrics**: Custom business metrics
+- **System Metrics**: CPU, memory, network metrics
+- **Database Metrics**: Connection pool, query performance
+- **HTTP Metrics**: Request/response metrics
+- **Custom Dashboards**: Environment-specific dashboards
+
+### Alerting Strategy
+- **Critical Alerts**: Production issues requiring immediate attention
+- **Warning Alerts**: Performance degradation or resource limits
+- **Info Alerts**: Deployment and configuration changes
+- **Escalation**: Multi-tier alerting with escalation paths
+- **PagerDuty Integration**: On-call notification system
+
+## Anti-patterns to Avoid
+
+### CI/CD Anti-patterns
+- ❌ **Direct production deployment**: Never deploy directly to production
+- ❌ **Skipping tests**: Always run full test suite before deployment
+- ❌ **Manual configuration**: Avoid manual configuration changes
+- ❌ **Secrets in code**: Never commit secrets to version control
+- ❌ **No rollback plan**: Always have rollback capability
+
+### Deployment Anti-patterns
+- ❌ **Blue-green without testing**: Test blue-green deployment thoroughly
+- ❌ **No health checks**: Always implement proper health checks
+- ❌ **Large batch deployments**: Deploy incrementally when possible
+- ❌ **No monitoring**: Monitor deployments and application health
+- ❌ **Ignoring security**: Security is not optional in any environment
+
+### AWS Anti-patterns
+- ❌ **Public subnets**: Use private subnets for application containers
+- ❌ **Overprivileged IAM**: Follow principle of least privilege
+- ❌ **No backup strategy**: Always have backup and restore procedures
+- ❌ **Single AZ deployment**: Use multiple availability zones
+- ❌ **No encryption**: Encrypt data in transit and at rest
+
+## Compliance and Governance
+
+### Change Management
+- **Pull Request Reviews**: All changes require review
+- **Approval Process**: Environment-specific approval workflows
+- **Documentation**: Update documentation with changes
+- **Communication**: Notify stakeholders of deployment changes
+- **Audit Trail**: Maintain complete deployment history
+
+### Security Compliance
+- **Vulnerability Scanning**: Regular automated scanning
+- **Dependency Updates**: Keep dependencies up to date
+- **Access Reviews**: Regular review of access permissions
+- **Incident Response**: Defined incident response procedures
+- **Compliance Reporting**: Generate compliance reports
+
+### Cost Management
+- **Resource Optimization**: Right-size resources for workloads
+- **Cost Monitoring**: Track and alert on cost anomalies
+- **Reserved Instances**: Use reserved instances for predictable workloads
+- **Auto Scaling**: Implement auto-scaling for cost efficiency
+- **Resource Tagging**: Tag all resources for cost allocation
+
+## Emergency Procedures
+
+### Rollback Procedures
+1. **Identify Issue**: Confirm deployment issue
+2. **Stop Current Deployment**: Halt ongoing deployment
+3. **Restore Previous Version**: Deploy last known good version
+4. **Verify Restoration**: Confirm system functionality
+5. **Incident Review**: Conduct post-incident review
+
+### Incident Response
+1. **Detection**: Automated monitoring or manual detection
+2. **Assessment**: Evaluate impact and severity
+3. **Response**: Execute incident response plan
+4. **Communication**: Notify stakeholders and users
+5. **Resolution**: Fix issue and restore service
+6. **Post-mortem**: Conduct blame-free post-mortem
+
+### Disaster Recovery
+- **Backup Strategy**: Regular automated backups
+- **Recovery Testing**: Regular disaster recovery testing
+- **RTO/RPO**: Defined recovery time and point objectives
+- **Cross-Region**: Multi-region deployment for critical systems
+- **Documentation**: Detailed disaster recovery procedures
+
+## References
+
+- [AWS Well-Architected Framework](https://aws.amazon.com/architecture/well-architected/)
+- [GitHub Actions Documentation](https://docs.github.com/en/actions)
+- [Docker Best Practices](https://docs.docker.com/develop/dev-best-practices/)
+- [AWS ECS Best Practices](https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/)
+- [Clean Architecture Principles](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)

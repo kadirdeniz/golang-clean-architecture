@@ -1,0 +1,369 @@
+name: Release Management
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+      release_type:
+        description: 'Release type'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+        - release
+        - prerelease
+      changelog:
+        description: 'Custom changelog (optional)'
+        required: false
+
+env:
+  GO_VERSION: '1.23'
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: golang-clean-architecture
+
+jobs:
+  validate-release:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Determine version
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" = "push" ]; then
+          VERSION=${GITHUB_REF#refs/tags/}
+        else
+          VERSION="${{ github.event.inputs.version }}"
+        fi
+        
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        
+        # Check if it's a prerelease
+        if [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-.*$ ]] || [ "${{ github.event.inputs.release_type }}" = "prerelease" ]; then
+          echo "is_prerelease=true" >> $GITHUB_OUTPUT
+        else
+          echo "is_prerelease=false" >> $GITHUB_OUTPUT
+        fi
+        
+        echo "Version: $VERSION"
+        echo "Is prerelease: ${{ steps.version.outputs.is_prerelease }}"
+
+    - name: Validate version format
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-.*)?$ ]]; then
+          echo "❌ Invalid version format: $VERSION"
+          echo "Expected format: v1.0.0 or v1.0.0-alpha.1"
+          exit 1
+        fi
+        echo "✅ Version format is valid: $VERSION"
+
+    - name: Check if tag already exists
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        if git rev-parse "$VERSION" >/dev/null 2>&1; then
+          echo "❌ Tag $VERSION already exists"
+          exit 1
+        fi
+        echo "✅ Tag $VERSION does not exist"
+
+  build-and-test:
+    name: Build and Test for Release
+    runs-on: ubuntu-latest
+    needs: validate-release
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Install dependencies
+      run: |
+        go mod download
+        go mod verify
+
+    - name: Install Wire
+      run: go install github.com/google/wire/cmd/wire@latest
+
+    - name: Generate Wire code
+      run: |
+        cd cmd/server
+        wire
+        cd ../..
+
+    - name: Run tests
+      run: |
+        go test ./... -v -race -coverprofile=coverage.out
+
+    - name: Build for multiple architectures
+      run: |
+        # Build for Linux AMD64
+        GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w -X main.version=${{ needs.validate-release.outputs.version }}" -o dist/server-linux-amd64 ./cmd/server
+        
+        # Build for Linux ARM64
+        GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w -X main.version=${{ needs.validate-release.outputs.version }}" -o dist/server-linux-arm64 ./cmd/server
+        
+        # Build for macOS AMD64
+        GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w -X main.version=${{ needs.validate-release.outputs.version }}" -o dist/server-darwin-amd64 ./cmd/server
+        
+        # Build for macOS ARM64
+        GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w -X main.version=${{ needs.validate-release.outputs.version }}" -o dist/server-darwin-arm64 ./cmd/server
+        
+        # Build for Windows AMD64
+        GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w -X main.version=${{ needs.validate-release.outputs.version }}" -o dist/server-windows-amd64.exe ./cmd/server
+
+    - name: Create checksums
+      run: |
+        cd dist
+        sha256sum * > checksums.txt
+        cd ..
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-binaries-${{ needs.validate-release.outputs.version }}
+        path: dist/
+        retention-days: 30
+
+  build-docker:
+    name: Build Release Docker Image
+    runs-on: ubuntu-latest
+    needs: [validate-release, build-and-test]
+    
+    outputs:
+      image: ${{ steps.build-image.outputs.image }}
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Install Wire
+      run: go install github.com/google/wire/cmd/wire@latest
+
+    - name: Generate Wire code
+      run: |
+        cd cmd/server
+        wire
+        cd ../..
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build, tag, and push release image
+      id: build-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        VERSION: ${{ needs.validate-release.outputs.version }}
+      run: |
+        # Build image with version tags
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$VERSION .
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+        
+        # Push images
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$VERSION
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$VERSION" >> $GITHUB_OUTPUT
+
+  generate-changelog:
+    name: Generate Changelog
+    runs-on: ubuntu-latest
+    needs: validate-release
+    
+    outputs:
+      changelog: ${{ steps.changelog.outputs.changelog }}
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        VERSION="${{ needs.validate-release.outputs.version }}"
+        
+        if [ -n "${{ github.event.inputs.changelog }}" ]; then
+          echo "changelog=${{ github.event.inputs.changelog }}" >> $GITHUB_OUTPUT
+        else
+          # Get the previous tag
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          
+          if [ -n "$PREVIOUS_TAG" ]; then
+            echo "Generating changelog from $PREVIOUS_TAG to $VERSION"
+            
+            # Generate changelog using git log
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" $PREVIOUS_TAG..HEAD | head -20)
+            
+            # Add categories
+            FEATURES=$(echo "$CHANGELOG" | grep -i "feat\|feature" || true)
+            FIXES=$(echo "$CHANGELOG" | grep -i "fix\|bug" || true)
+            OTHER=$(echo "$CHANGELOG" | grep -v -i "feat\|feature\|fix\|bug" || true)
+            
+            FORMATTED_CHANGELOG="## What's Changed"
+            
+            if [ -n "$FEATURES" ]; then
+              FORMATTED_CHANGELOG="$FORMATTED_CHANGELOG\n\n### 🚀 Features\n$FEATURES"
+            fi
+            
+            if [ -n "$FIXES" ]; then
+              FORMATTED_CHANGELOG="$FORMATTED_CHANGELOG\n\n### 🐛 Bug Fixes\n$FIXES"
+            fi
+            
+            if [ -n "$OTHER" ]; then
+              FORMATTED_CHANGELOG="$FORMATTED_CHANGELOG\n\n### 🔧 Other Changes\n$OTHER"
+            fi
+            
+            # Add full changelog link
+            FORMATTED_CHANGELOG="$FORMATTED_CHANGELOG\n\n**Full Changelog**: https://github.com/${{ github.repository }}/compare/$PREVIOUS_TAG...$VERSION"
+            
+            # Escape newlines for GitHub output
+            FORMATTED_CHANGELOG=$(echo -e "$FORMATTED_CHANGELOG" | sed ':a;N;$!ba;s/\n/\\n/g')
+            echo "changelog=$FORMATTED_CHANGELOG" >> $GITHUB_OUTPUT
+          else
+            echo "changelog=First release of golang-clean-architecture" >> $GITHUB_OUTPUT
+          fi
+        fi
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [validate-release, build-and-test, build-docker, generate-changelog]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: release-binaries-${{ needs.validate-release.outputs.version }}
+        path: dist/
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ needs.validate-release.outputs.version }}
+        release_name: Release ${{ needs.validate-release.outputs.version }}
+        body: |
+          # Release ${{ needs.validate-release.outputs.version }}
+          
+          ${{ needs.generate-changelog.outputs.changelog }}
+          
+          ## 🐳 Docker Image
+          
+          ```bash
+          docker pull ${{ needs.build-docker.outputs.image }}
+          ```
+          
+          ## 📦 Installation
+          
+          ### Using Go
+          ```bash
+          go install github.com/${{ github.repository }}/cmd/server@${{ needs.validate-release.outputs.version }}
+          ```
+          
+          ### Using Docker
+          ```bash
+          docker run -p 8080:8080 ${{ needs.build-docker.outputs.image }}
+          ```
+          
+          ### Manual Installation
+          Download the appropriate binary for your platform from the assets below.
+          
+          ## 🔐 Checksums
+          
+          See `checksums.txt` in the assets for file verification.
+        draft: false
+        prerelease: ${{ needs.validate-release.outputs.is_prerelease }}
+
+    - name: Upload Release Assets
+      run: |
+        # Upload all binaries and checksums
+        for file in dist/*; do
+          filename=$(basename "$file")
+          echo "Uploading $filename..."
+          
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary "@$file" \
+            "https://uploads.github.com/repos/${{ github.repository }}/releases/${{ steps.create_release.outputs.id }}/assets?name=$filename"
+        done
+
+    - name: Update README with latest version
+      if: needs.validate-release.outputs.is_prerelease == 'false'
+      run: |
+        # Update version badge in README (if exists)
+        if [ -f README.md ]; then
+          sed -i "s/v[0-9]\+\.[0-9]\+\.[0-9]\+/${{ needs.validate-release.outputs.version }}/g" README.md
+          
+          # Commit and push changes
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add README.md
+          git commit -m "Update version in README to ${{ needs.validate-release.outputs.version }}" || exit 0
+          git push
+        fi
+
+  post-release:
+    name: Post-Release Tasks
+    runs-on: ubuntu-latest
+    needs: [validate-release, create-release]
+    
+    steps:
+    - name: Release Summary
+      run: |
+        echo "## 🎉 Release Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version**: ${{ needs.validate-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Type**: ${{ needs.validate-release.outputs.is_prerelease == 'true' && 'Pre-release' || 'Release' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Docker Image**: ${{ needs.build-docker.outputs.image }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Release URL**: ${{ needs.create-release.outputs.html_url }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+        echo "1. Test the release in staging environment" >> $GITHUB_STEP_SUMMARY
+        echo "2. Update deployment configurations if needed" >> $GITHUB_STEP_SUMMARY
+        echo "3. Monitor application performance" >> $GITHUB_STEP_SUMMARY
+        echo "4. Update documentation if necessary" >> $GITHUB_STEP_SUMMARY
+
+    - name: Notify success
+      run: |
+        echo "✅ Release ${{ needs.validate-release.outputs.version }} created successfully!"
+        echo "🐳 Docker image pushed to ECR"
+        echo "📦 Binaries uploaded to GitHub Releases"
+        echo "📝 Changelog generated automatically" 

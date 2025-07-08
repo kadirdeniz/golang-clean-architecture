@@ -11,7 +11,7 @@ alwaysApply: true
 ## Mandatory Technologies
 
 ### Programming Language
-- **Go 1.21+** - Only allowed language for this project
+- **Go 1.23+** - Only allowed language for this project
 
 ### Web Framework
 - **Fiber 2.x** - HTTP framework (Express.js-like API, zero memory allocation)
@@ -38,16 +38,41 @@ alwaysApply: true
 - **pre-commit** - Automated code quality checks
 
 ### Containerization & CI/CD
-- **Docker** - Application containerization (multi-stage builds)
+- **Docker** - Application containerization (multi-stage builds, distroless images)
 - **Docker Compose** - Local development environment
-- **GitHub Actions** - CI/CD platform
-- **gosec** - Go security linting
+- **GitHub Actions** - CI/CD platform with comprehensive workflows
+- **gosec** - Go security linting and vulnerability scanning
+
+### AWS Infrastructure & Deployment
+- **Amazon ECR** - Docker container registry (image storage and management)
+- **Amazon ECS** - Container orchestration with Fargate (serverless containers)
+- **Application Load Balancer (ALB)** - Traffic distribution and SSL termination
+- **CloudWatch** - Logging, monitoring, and alerting
+- **SSM Parameter Store** - Secure configuration and secrets management
+- **AWS Certificate Manager** - SSL/TLS certificate management
+- **CloudFormation** - Infrastructure as Code (optional, templates provided)
+
+### Security & Compliance
+- **Trivy** - Container image vulnerability scanning
+- **TruffleHog** - Secrets detection in code and commits
+- **GitLeaks** - Additional secrets scanning
+- **Nancy** - Go dependency vulnerability checking
+- **govulncheck** - Official Go vulnerability scanner
 
 ### Configuration & Monitoring
 - **Viper** - Configuration management (YAML, environment-specific)
-- **Zap** - Structured logging (high performance)
-- **Prometheus** - Metrics collection
-- **Swagger/OpenAPI 3.0** - API documentation
+- **Zap** - Structured logging (high performance, JSON format)
+- **Swagger/OpenAPI 3.0** - API documentation and testing
+- **CloudWatch Logs** - Centralized log aggregation and analysis
+- **CloudWatch Metrics** - System and application metrics
+- **CloudWatch Alarms** - Automated alerting and notifications
+
+### Release & Deployment Management
+- **Semantic Versioning** - Version management strategy
+- **Git Tags** - Release versioning and tracking
+- **Multi-Architecture Builds** - Support for ARM64 and AMD64
+- **Blue-Green Deployment** - Zero-downtime deployment strategy
+- **Rollback Capabilities** - Automated rollback procedures
 
 ## Technology Evaluation Process
 
@@ -77,7 +102,28 @@ alwaysApply: true
 - **Regular load testing** of technology stack
 
 ## References
-- [Go Documentation](mdc:https:/golang.org/doc)
-- [Fiber Documentation](mdc:https:/docs.gofiber.io)
-- [GORM Documentation](mdc:https:/gorm.io/docs)
-- [Ginkgo Documentation](mdc:https:/onsi.github.io/ginkgo)
+
+### Core Technologies
+- [Go Documentation](https://golang.org/doc)
+- [Fiber Documentation](https://docs.gofiber.io)
+- [GORM Documentation](https://gorm.io/docs)
+- [Ginkgo Documentation](https://onsi.github.io/ginkgo)
+- [Wire Documentation](https://github.com/google/wire)
+
+### AWS Services
+- [Amazon ECS Documentation](https://docs.aws.amazon.com/ecs/)
+- [Amazon ECR Documentation](https://docs.aws.amazon.com/ecr/)
+- [Application Load Balancer Guide](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/)
+- [CloudWatch Documentation](https://docs.aws.amazon.com/cloudwatch/)
+- [SSM Parameter Store Guide](https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html)
+- [AWS Certificate Manager](https://docs.aws.amazon.com/acm/)
+
+### CI/CD & Security
+- [GitHub Actions Documentation](https://docs.github.com/en/actions)
+- [Docker Best Practices](https://docs.docker.com/develop/dev-best-practices/)
+- [Trivy Documentation](https://aquasecurity.github.io/trivy/)
+- [golangci-lint Documentation](https://golangci-lint.run/)
+
+### Deployment Guides
+- [AWS Deployment Guide](../docs/aws-deployment-guide.md)
+- [CI/CD Pipeline Documentation](../.github/workflows/)

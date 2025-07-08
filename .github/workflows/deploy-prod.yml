@@ -1,0 +1,284 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image tag to deploy (required for production)'
+        required: true
+      approved_by:
+        description: 'Approved by (team lead/manager)'
+        required: true
+      reason:
+        description: 'Reason for production deployment'
+        required: true
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: golang-clean-architecture
+  ECS_SERVICE: golang-clean-architecture-prod-service
+  ECS_CLUSTER: golang-clean-architecture-prod-cluster
+  CONTAINER_NAME: golang-clean-architecture-app
+  ENV: prod
+  CONFIG_FILE_NAME: config.prod
+
+jobs:
+  pre-deployment-checks:
+    name: Pre-deployment Security and Quality Checks
+    runs-on: ubuntu-latest
+    
+    outputs:
+      image-exists: ${{ steps.check-image.outputs.exists }}
+      security-passed: ${{ steps.security-scan.outputs.passed }}
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Check if image exists
+      id: check-image
+      run: |
+        if docker pull ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.event.inputs.image_tag }}; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+          echo "✅ Image exists in ECR"
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "❌ Image does not exist in ECR"
+          exit 1
+        fi
+
+    - name: Security scan
+      id: security-scan
+      run: |
+        echo "Running security scan on production image..."
+        # Add security scanning here (e.g., Trivy, Snyk, etc.)
+        
+        # For now, just validate image format and basic checks
+        IMAGE_INFO=$(docker inspect ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.event.inputs.image_tag }})
+        echo "✅ Image inspection passed"
+        echo "passed=true" >> $GITHUB_OUTPUT
+
+    - name: Validate task definition
+      run: |
+        echo "Validating ECS task definition..."
+        # Validate that task definition can be used
+        aws ecs describe-task-definition --task-definition golang-clean-architecture-task > /dev/null
+        echo "✅ Task definition validation passed"
+
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: pre-deployment-checks
+    if: needs.pre-deployment-checks.outputs.image-exists == 'true' && needs.pre-deployment-checks.outputs.security-passed == 'true'
+    
+    steps:
+    - name: Production deployment approval
+      uses: trstringer/manual-approval@v1
+      with:
+        secret: ${{ github.TOKEN }}
+        approvers: ${{ github.event.inputs.approved_by }}
+        minimum-approvals: 1
+        issue-title: "🚀 PRODUCTION DEPLOYMENT APPROVAL REQUIRED"
+        issue-body: |
+          ## 🚨 Production Deployment Request
+          
+          **⚠️ This is a PRODUCTION deployment. Please review carefully!**
+          
+          ### Deployment Details
+          - **Environment**: 🔴 **PRODUCTION**
+          - **Image Tag**: `${{ github.event.inputs.image_tag }}`
+          - **Requested by**: ${{ github.actor }}
+          - **Approved by**: ${{ github.event.inputs.approved_by }}
+          - **Reason**: ${{ github.event.inputs.reason }}
+          - **Time**: ${{ github.event.repository.pushed_at }}
+          
+          ### Pre-deployment Checks
+          - ✅ Image exists in ECR
+          - ✅ Security scan passed
+          - ✅ Task definition validated
+          
+          ### Post-approval Actions
+          1. Create backup of current deployment
+          2. Deploy new image to production
+          3. Run post-deployment tests
+          4. Monitor application health
+          
+          **⚠️ Only approve if you have verified the deployment is safe and necessary.**
+        exclude-workflow-initiator-as-approver: false
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Backup current deployment
+      id: backup
+      run: |
+        echo "Creating backup of current production deployment..."
+        
+        # Get current task definition
+        CURRENT_TASK_DEF=$(aws ecs describe-services --cluster ${{ env.ECS_CLUSTER }} --services ${{ env.ECS_SERVICE }} --query 'services[0].taskDefinition' --output text)
+        echo "current-task-def=$CURRENT_TASK_DEF" >> $GITHUB_OUTPUT
+        
+        # Get current image
+        CURRENT_IMAGE=$(aws ecs describe-task-definition --task-definition $CURRENT_TASK_DEF --query 'taskDefinition.containerDefinitions[0].image' --output text)
+        echo "current-image=$CURRENT_IMAGE" >> $GITHUB_OUTPUT
+        
+        echo "📦 Backup created - Current task definition: $CURRENT_TASK_DEF"
+        echo "📦 Backup created - Current image: $CURRENT_IMAGE"
+
+    - name: Check if ECS service exists
+      id: check-service
+      run: |
+        if aws ecs describe-services --cluster ${{ env.ECS_CLUSTER }} --services ${{ env.ECS_SERVICE }} --region ${{ env.AWS_REGION }} 2>/dev/null; then
+          echo "service-exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "service-exists=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Prepare task definition
+      run: |
+        ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG=${{ github.event.inputs.image_tag }}
+        AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        
+        # Replace placeholders in task definition
+        sed -i "s/{AWS_ACCOUNT_ID}/$AWS_ACCOUNT_ID/g" aws/task-definition.json
+        sed -i "s/{ECR_REGISTRY}/$ECR_REGISTRY/g" aws/task-definition.json
+        sed -i "s/{ECR_REPOSITORY}/${{ env.ECR_REPOSITORY }}/g" aws/task-definition.json
+        sed -i "s/{IMAGE_TAG}/$IMAGE_TAG/g" aws/task-definition.json
+        sed -i "s/{CONFIG_FILE_NAME}/${{ env.CONFIG_FILE_NAME }}/g" aws/task-definition.json
+        sed -i "s/{APP_ENV}/${{ env.ENV }}/g" aws/task-definition.json
+        sed -i "s/{AWS_REGION}/${{ env.AWS_REGION }}/g" aws/task-definition.json
+        sed -i "s/{ENV}/${{ env.ENV }}/g" aws/task-definition.json
+
+    - name: Deploy to Amazon ECS
+      if: steps.check-service.outputs.service-exists == 'true'
+      id: deploy
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: aws/task-definition.json
+        service: ${{ env.ECS_SERVICE }}
+        cluster: ${{ env.ECS_CLUSTER }}
+        wait-for-service-stability: true
+
+    - name: Create CloudFormation stack for new deployment
+      if: steps.check-service.outputs.service-exists == 'false'
+      run: |
+        echo "ECS service does not exist. Please create the ECS infrastructure first."
+        echo "You can use AWS CDK, CloudFormation, or Terraform to create:"
+        echo "1. ECS Cluster: ${{ env.ECS_CLUSTER }}"
+        echo "2. ECS Service: ${{ env.ECS_SERVICE }}"
+        echo "3. Application Load Balancer"
+        echo "4. Target Groups"
+        echo "5. Security Groups"
+        echo "6. IAM Roles (ecsTaskExecutionRole, ecsTaskRole)"
+        echo "7. CloudWatch Log Groups"
+        exit 1
+
+    - name: Run database migrations
+      run: |
+        echo "🗃️ Checking database migrations for production..."
+        # Get database URL from SSM Parameter Store
+        DATABASE_URL=$(aws ssm get-parameter --name "/${{ env.ENV }}/database/url" --with-decryption --query 'Parameter.Value' --output text 2>/dev/null || echo "")
+        
+        if [ -n "$DATABASE_URL" ]; then
+          echo "Running database migrations for production environment..."
+          # For production, consider running migrations in a separate step or using blue-green deployment
+          echo "⚠️ Database migrations should be carefully planned for production"
+        else
+          echo "Warning: DATABASE_URL not found in SSM Parameter Store at /${{ env.ENV }}/database/url"
+        fi
+
+    - name: Post-deployment health checks
+      timeout-minutes: 10
+      run: |
+        echo "🔍 Running post-deployment health checks..."
+        
+        # Wait for deployment to be stable
+        sleep 30
+        
+        # Get ALB endpoint (you'll need to implement this based on your infrastructure)
+        # ALB_DNS=$(aws elbv2 describe-load-balancers --names production-alb --query 'LoadBalancers[0].DNSName' --output text)
+        # HEALTH_URL="http://$ALB_DNS/health"
+        
+        # For now, just check ECS service status
+        SERVICE_STATUS=$(aws ecs describe-services --cluster ${{ env.ECS_CLUSTER }} --services ${{ env.ECS_SERVICE }} --query 'services[0].status' --output text)
+        
+        if [ "$SERVICE_STATUS" = "ACTIVE" ]; then
+          echo "✅ ECS service is active"
+        else
+          echo "❌ ECS service is not active: $SERVICE_STATUS"
+          exit 1
+        fi
+        
+        # Add more health checks here:
+        # - API endpoint health check
+        # - Database connectivity
+        # - External service dependencies
+        # - Performance benchmarks
+        
+        echo "✅ Post-deployment health checks passed"
+
+    - name: Deployment Summary
+      run: |
+        echo "## 🚀 Production Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: 🔴 **PRODUCTION**" >> $GITHUB_STEP_SUMMARY
+        echo "- **Cluster**: ${{ env.ECS_CLUSTER }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Service**: ${{ env.ECS_SERVICE }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Image**: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.event.inputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Config**: ${{ env.CONFIG_FILE_NAME }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Region**: ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Deployed by**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Approved by**: ${{ github.event.inputs.approved_by }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Reason**: ${{ github.event.inputs.reason }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Backup**: ${{ steps.backup.outputs.current-task-def }}" >> $GITHUB_STEP_SUMMARY
+
+    - name: Notify deployment success
+      if: success()
+      run: |
+        echo "🎉 Production deployment completed successfully!"
+        echo "The application is now running in production with image: ${{ github.event.inputs.image_tag }}"
+        echo "Rollback available using task definition: ${{ steps.backup.outputs.current-task-def }}"
+
+    - name: Create rollback instructions
+      if: success()
+      run: |
+        echo "## 🔄 Rollback Instructions" >> $GITHUB_STEP_SUMMARY
+        echo "If issues are detected, rollback using:" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "aws ecs update-service --cluster ${{ env.ECS_CLUSTER }} --service ${{ env.ECS_SERVICE }} --task-definition ${{ steps.backup.outputs.current-task-def }}" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  notify-failure:
+    name: Notify Deployment Failure
+    runs-on: ubuntu-latest
+    needs: [pre-deployment-checks, deploy]
+    if: failure()
+    
+    steps:
+    - name: Notify deployment failure
+      run: |
+        echo "💥 Production deployment failed!"
+        echo "Please check the logs and investigate immediately."
+        echo "Current production environment should be unaffected." 

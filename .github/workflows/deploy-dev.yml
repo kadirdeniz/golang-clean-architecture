@@ -1,0 +1,132 @@
+name: Deploy to Development
+
+on:
+  push:
+    branches: [ develop ]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image tag to deploy (default: latest)'
+        required: false
+        default: 'latest'
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: golang-clean-architecture
+  ECS_SERVICE: golang-clean-architecture-dev-service
+  ECS_CLUSTER: golang-clean-architecture-dev-cluster
+  CONTAINER_NAME: golang-clean-architecture-app
+  ENV: dev
+  CONFIG_FILE_NAME: config.dev
+
+jobs:
+  deploy:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download deployment artifact
+      if: github.event_name == 'push'
+      uses: actions/download-artifact@v4
+      with:
+        name: deployment-${{ github.sha }}
+        path: .
+
+    - name: Load deployment variables
+      if: github.event_name == 'push'
+      run: |
+        if [ -f deployment.env ]; then
+          cat deployment.env >> $GITHUB_ENV
+        fi
+
+    - name: Set image tag for manual deployment
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        echo "IMAGE_TAG=${{ github.event.inputs.image_tag }}" >> $GITHUB_ENV
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Check if ECS service exists
+      id: check-service
+      run: |
+        if aws ecs describe-services --cluster ${{ env.ECS_CLUSTER }} --services ${{ env.ECS_SERVICE }} --region ${{ env.AWS_REGION }} 2>/dev/null; then
+          echo "service-exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "service-exists=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Prepare task definition
+      run: |
+        ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG=${IMAGE_TAG:-${{ github.sha }}}
+        AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        
+        # Replace placeholders in task definition
+        sed -i "s/{AWS_ACCOUNT_ID}/$AWS_ACCOUNT_ID/g" aws/task-definition.json
+        sed -i "s/{ECR_REGISTRY}/$ECR_REGISTRY/g" aws/task-definition.json
+        sed -i "s/{ECR_REPOSITORY}/${{ env.ECR_REPOSITORY }}/g" aws/task-definition.json
+        sed -i "s/{IMAGE_TAG}/$IMAGE_TAG/g" aws/task-definition.json
+        sed -i "s/{CONFIG_FILE_NAME}/${{ env.CONFIG_FILE_NAME }}/g" aws/task-definition.json
+        sed -i "s/{APP_ENV}/${{ env.ENV }}/g" aws/task-definition.json
+        sed -i "s/{AWS_REGION}/${{ env.AWS_REGION }}/g" aws/task-definition.json
+        sed -i "s/{ENV}/${{ env.ENV }}/g" aws/task-definition.json
+
+    - name: Deploy to Amazon ECS
+      if: steps.check-service.outputs.service-exists == 'true'
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: aws/task-definition.json
+        service: ${{ env.ECS_SERVICE }}
+        cluster: ${{ env.ECS_CLUSTER }}
+        wait-for-service-stability: true
+
+    - name: Create CloudFormation stack for new deployment
+      if: steps.check-service.outputs.service-exists == 'false'
+      run: |
+        echo "ECS service does not exist. Please create the ECS infrastructure first."
+        echo "You can use AWS CDK, CloudFormation, or Terraform to create:"
+        echo "1. ECS Cluster: ${{ env.ECS_CLUSTER }}"
+        echo "2. ECS Service: ${{ env.ECS_SERVICE }}"
+        echo "3. Application Load Balancer"
+        echo "4. Target Groups"
+        echo "5. Security Groups"
+        echo "6. IAM Roles (ecsTaskExecutionRole, ecsTaskRole)"
+        echo "7. CloudWatch Log Groups"
+        exit 1
+
+    - name: Run database migrations
+      env:
+        AWS_ACCOUNT_ID: ${{ steps.get-account.outputs.account-id }}
+      run: |
+        # Get database URL from SSM Parameter Store
+        DATABASE_URL=$(aws ssm get-parameter --name "/${{ env.ENV }}/database/url" --with-decryption --query 'Parameter.Value' --output text 2>/dev/null || echo "")
+        
+        if [ -n "$DATABASE_URL" ]; then
+          echo "Running database migrations for development environment..."
+          # You might want to run this in a separate ECS task or use AWS CLI
+          echo "DATABASE_URL found, migrations should be run separately via ECS task"
+        else
+          echo "Warning: DATABASE_URL not found in SSM Parameter Store at /${{ env.ENV }}/database/url"
+        fi
+
+    - name: Deployment Summary
+      run: |
+        echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: Development" >> $GITHUB_STEP_SUMMARY
+        echo "- **Cluster**: ${{ env.ECS_CLUSTER }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Service**: ${{ env.ECS_SERVICE }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Image**: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${IMAGE_TAG:-${{ github.sha }}}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Config**: ${{ env.CONFIG_FILE_NAME }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Region**: ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY 

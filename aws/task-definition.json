@@ -1,0 +1,77 @@
+{
+  "family": "golang-clean-architecture-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::{AWS_ACCOUNT_ID}:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::{AWS_ACCOUNT_ID}:role/ecsTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "golang-clean-architecture-app",
+      "image": "{ECR_REGISTRY}/{ECR_REPOSITORY}:{IMAGE_TAG}",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "CONFIG_FILE_NAME",
+          "value": "{CONFIG_FILE_NAME}"
+        },
+        {
+          "name": "APP_ENV",
+          "value": "{APP_ENV}"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "arn:aws:ssm:{AWS_REGION}:{AWS_ACCOUNT_ID}:parameter/{ENV}/database/url"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/golang-clean-architecture-{ENV}",
+          "awslogs-region": "{AWS_REGION}",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl -f http://localhost:8080/health || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      },
+      "mountPoints": [],
+      "volumesFrom": [],
+      "linuxParameters": {
+        "initProcessEnabled": true
+      }
+    }
+  ],
+  "volumes": [],
+  "placementConstraints": [],
+  "tags": [
+    {
+      "key": "Environment",
+      "value": "{ENV}"
+    },
+    {
+      "key": "Application",
+      "value": "golang-clean-architecture"
+    },
+    {
+      "key": "ManagedBy",
+      "value": "GitHub Actions"
+    }
+  ]
+} 
